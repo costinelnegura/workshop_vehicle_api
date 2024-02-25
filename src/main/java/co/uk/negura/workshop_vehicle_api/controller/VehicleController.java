@@ -45,10 +45,10 @@ public class VehicleController {
     }
 
     /*
-    Delete vehicle using the ID, can be potentially extended to delete vehicle based on other parameters.
+    Delete vehicle using the ID or registration, can be potentially extended to delete vehicle based on other parameters.
      */
     @DeleteMapping()
-    public ResponseEntity<?> deleteVehicle(@RequestBody Map<String, Long> searchRequest,
+    public ResponseEntity<?> deleteVehicle(@RequestBody Map<String, String> searchRequest,
                                             @RequestHeader(value="Authorization") String bearerToken){
         return vehicleService.deleteVehicle(searchRequest, bearerToken);
     }
