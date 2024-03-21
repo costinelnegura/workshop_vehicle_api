@@ -9,5 +9,4 @@ public interface VehicleRepository extends JpaRepository<VehicleEntity, Long> {
 
     Optional<VehicleEntity> findById(Long id);
     Optional<VehicleEntity> findByRegistration(String registration);
-
 }

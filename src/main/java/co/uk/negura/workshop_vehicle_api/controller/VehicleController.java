@@ -3,7 +3,6 @@ package co.uk.negura.workshop_vehicle_api.controller;
 import co.uk.negura.workshop_vehicle_api.model.VehicleEntity;
 import co.uk.negura.workshop_vehicle_api.service.VehicleService;
 import com.github.fge.jsonpatch.JsonPatch;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,12 +12,15 @@ import java.util.Map;
 @RequestMapping("/api/v1/vehicle")
 public class VehicleController {
 
-    @Autowired
-    private VehicleService vehicleService;
+    private final VehicleService vehicleService;
+
+    public VehicleController(VehicleService vehicleService) {
+        this.vehicleService = vehicleService;
+    }
 
     /*
-    Create a new vehicle and save the vehicle details.
-     */
+        Create a new vehicle and save the vehicle details.
+         */
     @PostMapping()
     public ResponseEntity<?> createVehicle(@RequestBody VehicleEntity vehicleEntity,
                                             @RequestHeader(value="Authorization") String bearerToken){

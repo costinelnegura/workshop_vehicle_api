@@ -1,6 +1,6 @@
 package co.uk.negura.workshop_vehicle_api.model;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "vehicles")

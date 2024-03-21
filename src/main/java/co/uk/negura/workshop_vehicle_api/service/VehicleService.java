@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -18,15 +17,20 @@ import java.util.Map;
 @Service
 public class VehicleService {
 
-    @Autowired
-    private VehicleRepository vehicleRepository;
 
-    @Autowired
-    private ValidateTokenUtil validateTokenUtil;
+    private final VehicleRepository vehicleRepository;
+
+
+    private final ValidateTokenUtil validateTokenUtil;
+
+    public VehicleService(VehicleRepository vehicleRepository, ValidateTokenUtil validateTokenUtil) {
+        this.vehicleRepository = vehicleRepository;
+        this.validateTokenUtil = validateTokenUtil;
+    }
 
     /*
-    Validate bearer token.
-     */
+        Validate bearer token.
+         */
     private ResponseEntity<?> validateToken(String bearerToken) {
         return validateTokenUtil.validateToken(bearerToken);
     }
@@ -35,8 +39,13 @@ public class VehicleService {
     Create a new vehicle and save the vehicle details.
      */
     public ResponseEntity<?> createVehicle(VehicleEntity vehicleEntity, String bearerToken) {
-        ResponseEntity<?> tokenValidationResponse = validateToken(bearerToken);
         Map<String, Object> map = new LinkedHashMap<>();
+        if (bearerToken == null || bearerToken.isEmpty()) {
+            map.put("status", "0");
+            map.put("message", "Missing bearer token");
+            return ResponseEntity.badRequest().body(map);
+        }
+        ResponseEntity<?> tokenValidationResponse = validateToken(bearerToken);
         if (tokenValidationResponse.getStatusCode().value() != 200) {
             return tokenValidationResponse;
         }
@@ -95,11 +104,13 @@ public class VehicleService {
     Search for a vehicle using the ID or the registration, can be potentially extended to search for vehicle based on other parameters.
      */
     public ResponseEntity<?> searchVehicle(Map<String, String> searchRequest, String bearerToken) {
-        ResponseEntity<?> tokenValidationResponse = validateToken(bearerToken);
+//        ResponseEntity<?> tokenValidationResponse = validateToken(bearerToken);
         Map<String, Object> map = new LinkedHashMap<>();
-        if (tokenValidationResponse.getStatusCode().value() != 200) {
-            return tokenValidationResponse;
-        } else if (searchRequest.containsKey("registration")) {
+//        if (tokenValidationResponse.getStatusCode().value() != 200) {
+//            return tokenValidationResponse;
+//        } else
+            if (searchRequest.containsKey("registration")) {
+
             String registration = searchRequest.get("registration");
             VehicleEntity vehicle = vehicleRepository.findByRegistration(registration).orElse(null);
             if(vehicle == null){
