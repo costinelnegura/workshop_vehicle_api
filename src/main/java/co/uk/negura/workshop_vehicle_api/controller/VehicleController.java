@@ -18,40 +18,54 @@ public class VehicleController {
         this.vehicleService = vehicleService;
     }
 
-    /*
-        Create a new vehicle and save the vehicle details.
-         */
+    /**
+     * Create a new vehicle and save the vehicle details.
+     * @param vehicleEntity the vehicle details to be saved
+     * @return the response entity containing the vehicle details
+     */
     @PostMapping()
-    public ResponseEntity<?> createVehicle(@RequestBody VehicleEntity vehicleEntity,
-                                            @RequestHeader(value="Authorization") String bearerToken){
-        return vehicleService.createVehicle(vehicleEntity, bearerToken);
+    public ResponseEntity<?> createVehicle(@RequestBody VehicleEntity vehicleEntity){
+        return vehicleService.createVehicle(vehicleEntity);
     }
 
-    /*
-    Update vehicle details by using the ID to find it and update it with the new vehicle details from the JsonPatch.
+    /**
+     * Update a vehicle using the ID and the patch request.
+     * @param ID the ID of the vehicle to be updated
+     * @param patch the patch request containing the details to be updated
+     * @return the response entity containing the updated vehicle details
      */
     @PatchMapping("/{ID}")
     public ResponseEntity<?> updateVehicle(@PathVariable Long ID,
-                                            @RequestBody JsonPatch patch,
-                                            @RequestHeader(value="Authorization") String bearerToken){
-        return vehicleService.updateVehicle(ID, patch, bearerToken);
+                                            @RequestBody JsonPatch patch){
+        return vehicleService.updateVehicle(ID, patch);
     }
 
-    /*
-    Search for a vehicle using the ID or the email, can be potentially extended to search for vehicle based on other parameters.
+    /**
+     * Search for a vehicle using the ID or the registration, can be potentially extended to search for vehicle based on other parameters.
+     * @param searchRequest the search request containing the ID or registration of the vehicle to be searched from the database.
+     * @return the response entity containing the vehicle details
      */
     @GetMapping()
-    public ResponseEntity<?> searchVehicle(@RequestBody Map<String, String> searchRequest,
-                                            @RequestHeader(value="Authorization") String bearerToken){
-        return vehicleService.searchVehicle(searchRequest, bearerToken);
+    public ResponseEntity<?> searchVehicle(@RequestBody Map<String, String> searchRequest) {
+        return vehicleService.searchVehicle(searchRequest);
     }
 
-    /*
-    Delete vehicle using the ID or registration, can be potentially extended to delete vehicle based on other parameters.
+    /**
+     * Get all vehicles from the database.
+     * @return the response entity containing all the vehicle details
+     */
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllVehicles(){
+        return vehicleService.getAllVehicles();
+    }
+
+    /**
+     * Delete a vehicle using the ID or the registration.
+     * @param searchRequest the search request containing the ID or registration of the vehicle to be deleted from the database.
+     * @return the response entity containing the status of the deletion
      */
     @DeleteMapping()
-    public ResponseEntity<?> deleteVehicle(@RequestBody Map<String, String> searchRequest,
-                                            @RequestHeader(value="Authorization") String bearerToken){
-        return vehicleService.deleteVehicle(searchRequest, bearerToken);
+    public ResponseEntity<?> deleteVehicle(@RequestBody Map<String, String> searchRequest){
+        return vehicleService.deleteVehicle(searchRequest);
     }
 }

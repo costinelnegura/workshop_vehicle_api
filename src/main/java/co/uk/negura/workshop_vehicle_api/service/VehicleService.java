@@ -2,12 +2,12 @@ package co.uk.negura.workshop_vehicle_api.service;
 
 import co.uk.negura.workshop_vehicle_api.model.VehicleEntity;
 import co.uk.negura.workshop_vehicle_api.repository.VehicleRepository;
-import co.uk.negura.workshop_vehicle_api.util.ValidateTokenUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -17,82 +17,62 @@ import java.util.Map;
 @Service
 public class VehicleService {
 
-
     private final VehicleRepository vehicleRepository;
 
-
-    private final ValidateTokenUtil validateTokenUtil;
-
-    public VehicleService(VehicleRepository vehicleRepository, ValidateTokenUtil validateTokenUtil) {
+    public VehicleService(VehicleRepository vehicleRepository) {
         this.vehicleRepository = vehicleRepository;
-        this.validateTokenUtil = validateTokenUtil;
     }
 
-    /*
-        Validate bearer token.
-         */
-    private ResponseEntity<?> validateToken(String bearerToken) {
-        return validateTokenUtil.validateToken(bearerToken);
-    }
-
-    /*
-    Create a new vehicle and save the vehicle details.
+    /**
+     * Validate the token and return the response entity.
+     * @param vehicleEntity VehicleEntity object to be saved.
+     * @return ResponseEntity with the status of the request.
      */
-    public ResponseEntity<?> createVehicle(VehicleEntity vehicleEntity, String bearerToken) {
+    public ResponseEntity<?> createVehicle(VehicleEntity vehicleEntity) {
         Map<String, Object> map = new LinkedHashMap<>();
-        if (bearerToken == null || bearerToken.isEmpty()) {
-            map.put("status", "0");
-            map.put("message", "Missing bearer token");
-            return ResponseEntity.badRequest().body(map);
-        }
-        ResponseEntity<?> tokenValidationResponse = validateToken(bearerToken);
-        if (tokenValidationResponse.getStatusCode().value() != 200) {
-            return tokenValidationResponse;
-        }
         if(vehicleRepository.findByRegistration(vehicleEntity.getRegistration()).isPresent()){
-            map.put("status", "0");
+            map.put("object", "error");
+            map.put("status", "400");
             map.put("message", "Vehicle already exists");
             return ResponseEntity.badRequest().body(map);
         }else{
             VehicleEntity newVehicle = vehicleRepository.save(vehicleEntity);
-            map.put("status", "1");
-            map.put("message", "Vehicle created successfully");
-            map.put("data", newVehicle);
-            return ResponseEntity.ok().body(map);
+            return ResponseEntity.ok().body(newVehicle);
         }
     }
 
-    /*
-    Update vehicle details by using the ID to find it and update it with the new vehicle details from the JsonPatch.
+    /**
+     * Update vehicle details by using the ID to find it and update it with the new vehicle details from the JsonPatch.
+     * @param id ID of the vehicle to be updated.
+     * @param patch JsonPatch object to be applied to the vehicle.
+     * @return ResponseEntity with the status of the request.
      */
-    public ResponseEntity<?> updateVehicle(Long id, JsonPatch patch, String bearerToken) {
-        ResponseEntity<?> tokenValidationResponse = validateToken(bearerToken);
+    public ResponseEntity<?> updateVehicle(Long id, JsonPatch patch) {
         Map<String, Object> map = new LinkedHashMap<>();
-        if (tokenValidationResponse.getStatusCode().value() != 200) {
-            return tokenValidationResponse;
-        }
         try {
             if(!vehicleRepository.existsById(id)){
-                map.put("status", "0");
+                map.put("object", "error");
+                map.put("status", HttpStatus.BAD_REQUEST);
                 map.put("message", "Vehicle not found");
                 return ResponseEntity.badRequest().body(map);
             }
             VehicleEntity vehicle = vehicleRepository.findById(id).orElseThrow();
             VehicleEntity patchedVehicle = applyPatchToVehicle(patch, vehicle);
             vehicleRepository.save(patchedVehicle);
-            map.put("status", "1");
-            map.put("message", "Vehicle updated successfully");
-            map.put("data", patchedVehicle);
-            return ResponseEntity.ok().body(map);
+            return ResponseEntity.ok().body(patchedVehicle);
         } catch (JsonPatchException | JsonProcessingException e) {
-            map.put("status", "0");
-            map.put("message", "Error updating vehicle");
+            map.put("object", "error");
+            map.put("status", HttpStatus.BAD_REQUEST);
+            map.put("message", "Error updating vehicle, check the request body.");
             return ResponseEntity.badRequest().body(map);
         }
     }
 
-    /*
-    Apply the patch to the vehicle object.
+    /**
+     * Apply the JsonPatch to the vehicle.
+     * @param patch JsonPatch object to be applied to the vehicle.
+     * @param targetVehicle VehicleEntity object to be updated.
+     * @return VehicleEntity object with the updated details.
      */
     private VehicleEntity applyPatchToVehicle(JsonPatch patch, VehicleEntity targetVehicle)
             throws JsonPatchException, JsonProcessingException {
@@ -100,84 +80,124 @@ public class VehicleService {
         return new ObjectMapper().treeToValue(patched, VehicleEntity.class);
     }
 
-    /*
-    Search for a vehicle using the ID or the registration, can be potentially extended to search for vehicle based on other parameters.
+    /**
+     * Search for a vehicle using the registration or ID.
+     * @param searchRequest Map containing the search parameters.
+     * @return ResponseEntity with the status of the request.
      */
-    public ResponseEntity<?> searchVehicle(Map<String, String> searchRequest, String bearerToken) {
-//        ResponseEntity<?> tokenValidationResponse = validateToken(bearerToken);
+    public ResponseEntity<?> searchVehicle(Map<String, String> searchRequest) {
         Map<String, Object> map = new LinkedHashMap<>();
-//        if (tokenValidationResponse.getStatusCode().value() != 200) {
-//            return tokenValidationResponse;
-//        } else
             if (searchRequest.containsKey("registration")) {
-
+            if(searchRequest.get("registration").isEmpty()){
+                map.put("object", "error");
+                map.put("status", HttpStatus.BAD_REQUEST);
+                map.put("message", "Bad Request, vehicle registration is required");
+                return ResponseEntity.badRequest().body(map);
+            }
             String registration = searchRequest.get("registration");
             VehicleEntity vehicle = vehicleRepository.findByRegistration(registration).orElse(null);
-            if(vehicle == null){
-                map.put("status", "0");
-                map.put("message", "Vehicle not found");
+                return getResponseEntity(map, vehicle);
+            } else if (searchRequest.containsKey("id")) {
+            if(searchRequest.get("id").isEmpty()){
+                map.put("object", "error");
+                map.put("status", HttpStatus.BAD_REQUEST);
+                map.put("message", "Bad Request, vehicle ID is required");
                 return ResponseEntity.badRequest().body(map);
             }
-            map.put("status", "1");
-            map.put("message", "Vehicle retrieved successfully");
-            map.put("data", vehicle);
-            return ResponseEntity.ok().body(map);
-        } else if (searchRequest.containsKey("id")) {
             Long id = Long.parseLong(searchRequest.get("id"));
             VehicleEntity vehicle = vehicleRepository.findById(id).orElse(null);
-            if(vehicle == null){
-                map.put("status", "0");
-                map.put("message", "Vehicle not found");
-                return ResponseEntity.badRequest().body(map);
-            }
-            map.put("status", "1");
-            map.put("message", "Vehicle retrieved successfully");
-            map.put("data", vehicle);
-            return ResponseEntity.ok().body(map);
-        } else {
-            map.put("status", "0");
+                return getResponseEntity(map, vehicle);
+            } else {
+            map.put("object", "error");
+            map.put("status", HttpStatus.BAD_REQUEST);
             map.put("message", "Bad Request");
             return ResponseEntity.badRequest().body(map);
         }
-
     }
 
-    /*
-    Delete vehicle using the ID or registration, can be potentially extended to delete vehicle based on other parameters.
+    /**
+     * Get the response entity based on the vehicle found or not.
+     * @param map Map containing the response details.
+     * @param vehicle VehicleEntity object found.
+     * @return ResponseEntity with the status of the request.
      */
-    public ResponseEntity<?> deleteVehicle(Map<String, String> searchRequest, String bearerToken) {
-        ResponseEntity<?> tokenValidationResponse = validateToken(bearerToken);
+    private ResponseEntity<?> getResponseEntity(Map<String, Object> map, VehicleEntity vehicle) {
+        if(vehicle == null){
+            map.put("object", "error");
+            map.put("status", HttpStatus.BAD_REQUEST);
+            map.put("message", "Vehicle not found");
+            return ResponseEntity.badRequest().body(map);
+        }
+        return ResponseEntity.ok().body(vehicle);
+    }
+
+    /**
+     * Delete vehicle details using the registration or ID.
+     * @param searchRequest the search request containing the registration or ID of the vehicle to be deleted from the database
+     * @return ResponseEntity with the status of the request.
+     */
+    public ResponseEntity<?> deleteVehicle(Map<String, String> searchRequest) {
         Map<String, Object> map = new LinkedHashMap<>();
-        if (tokenValidationResponse.getStatusCode().value() != 200) {
-            return tokenValidationResponse;
-        } else if (searchRequest.containsKey("registration")) {
+        if (searchRequest.containsKey("registration")) {
+            if(searchRequest.get("registration").isEmpty()){
+                map.put("object", "error");
+                map.put("status", HttpStatus.BAD_REQUEST);
+                map.put("message", "Bad Request, vehicle registration is required");
+                return ResponseEntity.badRequest().body(map);
+            }
             String registration = searchRequest.get("registration");
             VehicleEntity vehicle = vehicleRepository.findByRegistration(registration).orElse(null);
-            if(vehicle == null){
-                map.put("status", "0");
-                map.put("message", "Vehicle not found");
+            return getDeleteResponseEntity(map, vehicle);
+        } else if (searchRequest.containsKey("id")) {
+            if(searchRequest.get("id").isEmpty()){
+                map.put("object", "error");
+                map.put("status", HttpStatus.BAD_REQUEST);
+                map.put("message", "Bad Request, vehicle ID is required");
                 return ResponseEntity.badRequest().body(map);
             }
-            vehicleRepository.delete(vehicle);
-            map.put("status", "1");
-            map.put("message", "Vehicle deleted successfully");
-            return ResponseEntity.ok().body(map);
-        } else if (searchRequest.containsKey("id")) {
             Long id = Long.parseLong(searchRequest.get("id"));
             VehicleEntity vehicle = vehicleRepository.findById(id).orElse(null);
-            if(vehicle == null){
-                map.put("status", "0");
-                map.put("message", "Vehicle not found");
-                return ResponseEntity.badRequest().body(map);
-            }
-            vehicleRepository.delete(vehicle);
-            map.put("status", "1");
-            map.put("message", "Vehicle deleted successfully");
-            return ResponseEntity.ok().body(map);
+            return getDeleteResponseEntity(map, vehicle);
         } else {
-            map.put("status", "0");
+            map.put("object", "error");
+            map.put("status", HttpStatus.BAD_REQUEST);
             map.put("message", "Bad Request");
             return ResponseEntity.badRequest().body(map);
         }
+    }
+
+    /**
+     * Get the response entity based on the vehicle found or not.
+     * @param map Map containing the response details.
+     * @param vehicle VehicleEntity object found.
+     * @return ResponseEntity with the status of the request.
+     */
+    private ResponseEntity<?> getDeleteResponseEntity(Map<String, Object> map, VehicleEntity vehicle) {
+        if(vehicle == null){
+            map.put("object", "error");
+            map.put("status", HttpStatus.BAD_REQUEST);
+            map.put("message", "Vehicle not found");
+            return ResponseEntity.badRequest().body(map);
+        }
+        vehicleRepository.delete(vehicle);
+        map.put("object", "success");
+        map.put("status", HttpStatus.OK);
+        map.put("message", "Vehicle deleted successfully");
+        return ResponseEntity.ok().body(map);
+    }
+
+    /**
+     * Get all vehicles from the database.
+     * @return ResponseEntity with the status of the request.
+     */
+    public ResponseEntity<?> getAllVehicles() {
+        if(vehicleRepository.findAll().isEmpty()){
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("object", "error");
+            map.put("status", HttpStatus.BAD_REQUEST);
+            map.put("message", "No vehicles found");
+            return ResponseEntity.badRequest().body(map);
+        }
+        return ResponseEntity.ok().body(vehicleRepository.findAll());
     }
 }
